@@ -73,7 +73,7 @@ class NetworkOverviewModule(ctk.CTkFrame):
         # Tytuł modułu
         ctk.CTkLabel(
             header,
-            text="Przeglad sieci",
+            text="Przegląd sieci",
             font=ctk.CTkFont(size=22, weight="bold"),
             text_color=TEXT_PRIMARY,
         ).grid(row=0, column=0, sticky="w")
@@ -90,7 +90,7 @@ class NetworkOverviewModule(ctk.CTkFrame):
         # Przycisk Odświeź
         self._refresh_btn = ctk.CTkButton(
             header,
-            text="  Odswiez",
+            text="  Odśwież",
             width=120,
             height=36,
             corner_radius=8,
@@ -130,7 +130,7 @@ class NetworkOverviewModule(ctk.CTkFrame):
         if self._loading:
             return
         self._loading = True
-        self._refresh_btn.configure(state="disabled", text="  Ladowanie...")
+        self._refresh_btn.configure(state="disabled", text="  Ładowanie...")
         self._status_label.configure(text="Pobieranie danych...")
         self._clear_cards()
         threading.Thread(target=self._fetch_data, daemon=True).start()
@@ -148,7 +148,7 @@ class NetworkOverviewModule(ctk.CTkFrame):
         """Callback wykonywany w wątku UI po zakończeniu pobierania."""
         self._interfaces = interfaces
         self._loading = False
-        self._refresh_btn.configure(state="normal", text="  Odswiez")
+        self._refresh_btn.configure(state="normal", text="  Odśwież")
         self._status_label.configure(text="")
 
         if not interfaces:
@@ -158,7 +158,7 @@ class NetworkOverviewModule(ctk.CTkFrame):
         active = sum(1 for i in interfaces if i.is_active)
         total = len(interfaces)
         self._counter_label.configure(
-            text=f"{active} aktywnych  /  {total} lacznie"
+            text=f"{active} aktywnych  /  {total} łącznie"
         )
         self._render_cards(interfaces)
 
@@ -182,7 +182,7 @@ class NetworkOverviewModule(ctk.CTkFrame):
         Buduje pojedynczą kartę interfejsu sieciowego.
 
         Karta głównego interfejsu (is_default=True) otrzymuje niebieski
-        akcent i etykietę "Domyslny".
+        akcent i etykietę "Domyślny".
         """
         # Wybierz kolor tła karty
         bg_color = CARD_HIGHLIGHT if iface.is_default else CARD_BG
@@ -270,9 +270,9 @@ class NetworkOverviewModule(ctk.CTkFrame):
         # Badge: typ interfejsu
         _make_badge(badges, iface.iface_type, BADGE_BG, col=1, padx=(4, 0))
 
-        # Badge: "Domyslny" tylko dla głównego interfejsu
+        # Badge: "Domyślny" tylko dla głównego interfejsu
         if iface.is_default:
-            _make_badge(badges, "Domyslny", ACCENT_BORDER, col=2, padx=(4, 0))
+            _make_badge(badges, "Domyślny", ACCENT_BORDER, col=2, padx=(4, 0))
 
     def _build_card_data_grid(self, card: ctk.CTkFrame, iface: InterfaceInfo):
         """
@@ -299,11 +299,11 @@ class NetworkOverviewModule(ctk.CTkFrame):
             # (etykieta, wartość, wyróżnij_wartość?)
             ("Adres IPv4",     ipv4_text,   iface.is_active and bool(iface.ipv4)),
             ("Maska podsieci", mask_text,   False),
-            ("Brama domyslna", gw_text,     iface.is_default),
+            ("Brama domyślna", gw_text,     iface.is_default),
             ("Adres IPv6",     ipv6_text,   False),
             ("Serwery DNS",    dns_text,    False),
             ("Adres MAC",      iface.mac,   False),
-            ("Predkosc lacza", speed_text,  False),
+            ("Prędkość łącza", speed_text,  False),
             ("MTU",            mtu_text,    False),
             ("DHCP",           dhcp_text,   False),
         ]
@@ -340,20 +340,20 @@ class NetworkOverviewModule(ctk.CTkFrame):
 
     def _show_empty(self):
         """Wyświetla komunikat gdy nie wykryto żadnych interfejsów."""
-        self._counter_label.configure(text="Nie wykryto interfejsow")
+        self._counter_label.configure(text="Nie wykryto interfejsów")
         ctk.CTkLabel(
             self._scroll_frame,
-            text="Brak interfejsow sieciowych.\nSprawdz polaczenie i uprawnienia.",
+            text="Brak interfejsów sieciowych.\nSprawdź połączenie i uprawnienia.",
             font=ctk.CTkFont(size=14),
             text_color=TEXT_MUTED,
         ).grid(row=0, column=0, pady=40)
 
     def _show_error(self, msg: str):
         """Wyświetla komunikat o błędzie."""
-        self._counter_label.configure(text="Blad pobierania danych")
+        self._counter_label.configure(text="Błąd pobierania danych")
         ctk.CTkLabel(
             self._scroll_frame,
-            text=f"Wystapil blad:\n{msg}",
+            text=f"Wystąpił błąd:\n{msg}",
             font=ctk.CTkFont(size=12),
             text_color=WARNING_COLOR,
         ).grid(row=0, column=0, pady=40)

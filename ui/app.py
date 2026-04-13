@@ -36,11 +36,11 @@ MODULE_REGISTRY = {
 # ---------------------------------------------------------------------------
 # (klucz, etykieta_wyswietlana, dostepny_teraz)
 NAV_ITEMS = [
-    ("network", "Przeglad sieci",    True),
+    ("network", "Przegląd sieci",    True),
     ("scan",    "Skanowanie sieci",  True),
     ("info",    "Informacje",        True),
     ("monitor", "Monitor ruchu",     False),
-    ("ports",   "Sprawdz porty",     False),
+    ("ports",   "Sprawdź porty",     False),
 ]
 
 
@@ -151,7 +151,7 @@ class NetInfoApp(ctk.CTk):
         # --- Nagłówek sekcji ---
         ctk.CTkLabel(
             sidebar,
-            text="  NARZEDZIA",
+            text="  NARZĘDZIA",
             font=ctk.CTkFont(size=9, weight="bold"),
             text_color=("#9ca0b0", "#585b70"),
             anchor="w",
@@ -190,7 +190,7 @@ class NetInfoApp(ctk.CTk):
         # Informacja o planowanych modułach
         ctk.CTkLabel(
             nav_frame,
-            text="  Wkrotce dostepne...",
+            text="  Wkrótce dostępne...",
             font=ctk.CTkFont(size=10),
             text_color=("#9ca0b0", "#45475a"),
             anchor="w",

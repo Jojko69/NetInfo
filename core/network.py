@@ -70,7 +70,9 @@ def _powershell(cmd: str) -> Optional[str]:
                 "-NoProfile",
                 "-NonInteractive",
                 "-ExecutionPolicy", "Bypass",
-                "-Command", cmd,
+                # Wymuszamy UTF-8 na wyjściu konsoli PowerShell,
+                # by polskie znaki w nazwach interfejsów były poprawnie odczytywane
+                "-Command", "[Console]::OutputEncoding = [Text.Encoding]::UTF8; " + cmd,
             ],
             capture_output=True,
             text=True,
