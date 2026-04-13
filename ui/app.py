@@ -18,6 +18,7 @@ import customtkinter as ctk
 
 from ui.modules.network_overview import NetworkOverviewModule
 from ui.modules.network_scan import NetworkScanModule
+from ui.modules.info_reference import InfoReferenceModule
 
 # ---------------------------------------------------------------------------
 # Rejestr modułów – klucz: id nawigacji, wartość: klasa CTkFrame
@@ -25,6 +26,7 @@ from ui.modules.network_scan import NetworkScanModule
 MODULE_REGISTRY = {
     "network": NetworkOverviewModule,
     "scan":    NetworkScanModule,
+    "info":    InfoReferenceModule,
     # "monitor": TrafficMonitorModule,   # przykład: dodanie w przyszłości
     # "ports":   PortCheckerModule,
 }
@@ -36,6 +38,7 @@ MODULE_REGISTRY = {
 NAV_ITEMS = [
     ("network", "Przeglad sieci",    True),
     ("scan",    "Skanowanie sieci",  True),
+    ("info",    "Informacje",        True),
     ("monitor", "Monitor ruchu",     False),
     ("ports",   "Sprawdz porty",     False),
 ]
