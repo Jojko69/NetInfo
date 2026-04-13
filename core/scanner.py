@@ -3,15 +3,17 @@ core/scanner.py
 ===============
 Silnik skanowania sieci dla aplikacji NetInfo.
 
-Trzyetapowe wykrywanie urządzeń:
-  Faza 1 – ICMP Ping (równoległy)  → czy host żyje + czas odpowiedzi
-  Faza 2 – ARP cache               → adres MAC (tylko sieć lokalna L2)
-  Faza 3 – Reverse DNS             → nazwa hosta
+Cztereetapowe wykrywanie urządzeń:
+  Faza 1 – ICMP Ping (równoległy)     → czy host żyje + czas odpowiedzi
+  Faza 2 – ARP cache                  → adres MAC (tylko sieć lokalna L2)
+  Faza 3 – Skanowanie portów TCP      → popularne porty (opcjonalne)
+  Faza 4 – Reverse DNS                → nazwa hosta
 
 Dlaczego taka kolejność:
   - Ping-sweep zapełnia tablicę ARP systemu Windows automatycznie
   - Jedno wywołanie "arp -a" po sweep'ie daje MAC dla wszystkich hostów
-  - DNS jest najwolniejszy – robimy go na końcu równolegle
+  - Porty skanujemy przed DNS – DNS jest najwolniejszy, robimy go na końcu
+  - DNS wykonujemy równolegle by zminimalizować czas
 
 Ograniczenia:
   - Hosty z wyłączonym ICMP (np. niektóre firewalle) mogą nie być wykryte
@@ -26,8 +28,8 @@ import subprocess
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
 
 
 # ---------------------------------------------------------------------------
@@ -38,8 +40,33 @@ from typing import Callable, List, Optional, Tuple
 _NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 # Maksymalny dozwolony zakres skanowania
-MAX_HOSTS = 65534   # /16
-WARN_HOSTS = 4094   # /20 – ostrzeżenie o długim czasie
+MAX_HOSTS  = 65534   # /16
+WARN_HOSTS = 4094    # /20 – ostrzeżenie o długim czasie
+
+# ---------------------------------------------------------------------------
+# Popularne porty TCP do skanowania (Faza 3 – opcjonalna)
+# ---------------------------------------------------------------------------
+# Słownik: numer_portu → skrócona_nazwa_usługi
+COMMON_PORTS: Dict[int, str] = {
+    21:   "FTP",
+    22:   "SSH",
+    23:   "Telnet",
+    25:   "SMTP",
+    53:   "DNS",
+    80:   "HTTP",
+    110:  "POP3",
+    135:  "RPC",
+    139:  "NetBIOS",
+    143:  "IMAP",
+    443:  "HTTPS",
+    445:  "SMB",
+    1433: "MSSQL",
+    3306: "MySQL",
+    3389: "RDP",
+    5900: "VNC",
+    8080: "HTTP-Alt",
+    8443: "HTTPS-Alt",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +81,7 @@ class ScanResult:
     mac: str = "Brak"
     response_ms: float = -1
     is_alive: bool = False
+    open_ports: List[int] = field(default_factory=list)  # numery otwartych portów TCP
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +231,37 @@ def get_arp_table() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Faza 3 – Reverse DNS (nazwy hostów)
+# Faza 3 – Skanowanie portów TCP (opcjonalne)
+# ---------------------------------------------------------------------------
+
+def scan_ports(ip: str, ports: List[int], timeout_ms: int = 400) -> List[int]:
+    """
+    Sprawdza które porty TCP są otwarte na danym hoście.
+    Używa socket.connect_ex() – pełne połączenie TCP (niezawodne).
+    Skanuje wszystkie porty jednego hosta równolegle.
+
+    Zwraca posortowaną listę numerów otwartych portów.
+    """
+    timeout_sec = timeout_ms / 1000
+
+    def _check(port: int) -> Optional[int]:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout_sec)
+            result = sock.connect_ex((ip, port))
+            sock.close()
+            return port if result == 0 else None
+        except Exception:
+            return None
+
+    with ThreadPoolExecutor(max_workers=len(ports)) as pool:
+        results = list(pool.map(_check, ports))
+
+    return sorted(p for p in results if p is not None)
+
+
+# ---------------------------------------------------------------------------
+# Faza 4 – Reverse DNS (nazwy hostów)
 # ---------------------------------------------------------------------------
 
 def resolve_hostname(ip: str, timeout_sec: float = 1.5) -> str:
@@ -238,6 +296,8 @@ def scan_network(
     stop_event: threading.Event,
     timeout_ms: int = 500,
     max_workers: int = 100,
+    do_port_scan: bool = False,
+    port_timeout_ms: int = 400,
 ) -> None:
     """
     Skanuje listę adresów IP i publikuje wyniki przez kolejkę.
@@ -249,11 +309,13 @@ def scan_network(
       ("done", wyniki: List[ScanResult])        – zakończenie, finalne dane
 
     Parametry:
-      targets      – lista adresów IP do sprawdzenia
-      result_queue – kolejka thread-safe do komunikacji z UI
-      stop_event   – ustawienie zatrzymuje skanowanie
-      timeout_ms   – timeout pinga w milisekundach (100–2000)
-      max_workers  – liczba równoległych wątków ping
+      targets        – lista adresów IP do sprawdzenia
+      result_queue   – kolejka thread-safe do komunikacji z UI
+      stop_event     – ustawienie zatrzymuje skanowanie
+      timeout_ms     – timeout pinga w milisekundach (100–2000)
+      max_workers    – liczba równoległych wątków ping
+      do_port_scan   – czy wykonać skanowanie portów TCP (Faza 3)
+      port_timeout_ms – timeout połączenia TCP na port w milisekundach
     """
     total = len(targets)
     scanned = 0
@@ -290,7 +352,34 @@ def scan_network(
         for r in live_hosts:
             r.mac = arp.get(r.ip, "Brak")
 
-    # ---- Faza 3: Rozwiązywanie nazw hostów ---------------------------------
+    # ---- Faza 3: Skanowanie portów TCP (opcjonalne) ------------------------
+    if live_hosts and do_port_scan and not stop_event.is_set():
+        port_list = list(COMMON_PORTS.keys())
+        n_hosts = len(live_hosts)
+        n_ports = len(port_list)
+        result_queue.put((
+            "status",
+            f"Skanowanie portów: {n_ports} portów × {n_hosts} hostów "
+            f"(może potrwać do {n_hosts * port_timeout_ms // 1000 + 5} s)..."
+        ))
+
+        def _ports_one(r: ScanResult) -> ScanResult:
+            if not stop_event.is_set():
+                r.open_ports = scan_ports(r.ip, port_list, port_timeout_ms)
+            return r
+
+        # Skanujemy po 20 hostów naraz – każdy host używa n_ports wątków wewnętrznie
+        with ThreadPoolExecutor(max_workers=min(20, n_hosts)) as pool:
+            futs = [pool.submit(_ports_one, r) for r in live_hosts]
+            done_count = 0
+            for fut in as_completed(futs):
+                if stop_event.is_set():
+                    break
+                fut.result()
+                done_count += 1
+                result_queue.put(("status", f"Skanowanie portów: {done_count}/{n_hosts} hostów..."))
+
+    # ---- Faza 4: Rozwiązywanie nazw hostów (DNS) ---------------------------
     if live_hosts and not stop_event.is_set():
         result_queue.put(("status", "Rozwiązywanie nazw hostów (DNS)..."))
 

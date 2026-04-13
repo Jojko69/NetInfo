@@ -17,6 +17,7 @@ import customtkinter as ctk
 from typing import List, Optional
 
 from core.scanner import (
+    COMMON_PORTS,
     ScanResult,
     parse_targets,
     validate_target_size,
@@ -164,9 +165,75 @@ class NetworkScanModule(ctk.CTkFrame):
             text_color=TEXT_MUTED,
         ).pack(side="left", padx=(10, 0))
 
-        # --- Wiersz 4: przyciski + komunikat błędu ---
+        # --- Wiersz 3b: opcja skanowania portów ---
+        row3b = ctk.CTkFrame(panel, fg_color="transparent")
+        row3b.grid(row=3, column=0, sticky="ew", padx=16, pady=(2, 4))
+
+        self._port_scan_var = ctk.BooleanVar(value=False)
+        self._port_scan_cb = ctk.CTkCheckBox(
+            row3b,
+            text="Skanuj popularne porty TCP",
+            variable=self._port_scan_var,
+            font=ctk.CTkFont(size=12),
+            command=self._on_port_scan_toggle,
+        )
+        self._port_scan_cb.pack(side="left")
+
+        # Lista portów do sprawdzenia (tooltip-like)
+        port_names = ", ".join(
+            f"{port}/{name}" for port, name in COMMON_PORTS.items()
+        )
+        ctk.CTkLabel(
+            row3b,
+            text=f"  ({len(COMMON_PORTS)} portów: {port_names})",
+            font=ctk.CTkFont(size=10),
+            text_color=TEXT_MUTED,
+            wraplength=550,
+            justify="left",
+        ).pack(side="left", padx=(6, 0))
+
+        # Timeout połączenia TCP per port
+        self._port_timeout_frame = ctk.CTkFrame(panel, fg_color="transparent")
+        self._port_timeout_frame.grid(row=4, column=0, sticky="ew", padx=16, pady=(0, 4))
+        self._port_timeout_frame.grid_remove()  # domyślnie ukryty
+
+        ctk.CTkLabel(
+            self._port_timeout_frame,
+            text="Timeout portu:",
+            font=ctk.CTkFont(size=11),
+            text_color=TEXT_MUTED,
+        ).pack(side="left", padx=(0, 8))
+
+        self._port_timeout_var = ctk.IntVar(value=400)
+        self._port_timeout_label = ctk.CTkLabel(
+            self._port_timeout_frame,
+            text="400 ms",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=TEXT_VALUE,
+            width=55,
+        )
+        self._port_timeout_label.pack(side="left", padx=(0, 6))
+
+        ctk.CTkSlider(
+            self._port_timeout_frame,
+            from_=100,
+            to=1000,
+            number_of_steps=9,
+            variable=self._port_timeout_var,
+            width=160,
+            command=lambda v: self._port_timeout_label.configure(text=f"{int(v)} ms"),
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            self._port_timeout_frame,
+            text="  (niski timeout = szybciej, ale może przeoczyć wolne usługi)",
+            font=ctk.CTkFont(size=10),
+            text_color=TEXT_MUTED,
+        ).pack(side="left")
+
+        # --- Wiersz 5: przyciski + komunikat błędu ---
         row4 = ctk.CTkFrame(panel, fg_color="transparent")
-        row4.grid(row=3, column=0, sticky="ew", padx=16, pady=(8, 14))
+        row4.grid(row=5, column=0, sticky="ew", padx=16, pady=(8, 14))
 
         self._scan_btn = ctk.CTkButton(
             row4,
@@ -231,7 +298,8 @@ class NetworkScanModule(ctk.CTkFrame):
         table_frame.grid_columnconfigure(0, weight=1)
         table_frame.grid_rowconfigure(1, weight=1)
 
-        self._build_table_header(table_frame)
+        self._table_frame = table_frame   # zapamiętaj do przebudowania nagłówka
+        self._build_table_header(table_frame, show_ports=False)
 
         # Przewijana lista wyników
         self._scroll = ctk.CTkScrollableFrame(
@@ -252,8 +320,16 @@ class NetworkScanModule(ctk.CTkFrame):
         )
         self._placeholder.pack(pady=50)
 
-    def _build_table_header(self, parent):
-        """Stały wiersz nagłówkowy tabeli."""
+    def _build_table_header(self, parent, show_ports: bool = False):
+        """
+        Wiersz nagłówkowy tabeli.
+        show_ports=True dodaje kolumnę "Otwarte porty".
+        Przechowuje referencję jako self._table_header – przy każdym nowym skanie
+        nagłówek jest odbudowywany, by pasował do aktualnego trybu.
+        """
+        if hasattr(self, "_table_header") and self._table_header.winfo_exists():
+            self._table_header.destroy()
+
         hdr = ctk.CTkFrame(
             parent,
             fg_color=HEADER_BG,
@@ -262,14 +338,18 @@ class NetworkScanModule(ctk.CTkFrame):
         )
         hdr.grid(row=0, column=0, sticky="ew", pady=(0, 2))
         hdr.grid_propagate(False)
+        self._table_header = hdr
 
         columns = [
-            ("#",          40,  "center"),
-            ("Adres IP",   150, "w"),
-            ("Nazwa hosta",200, "w"),
-            ("Adres MAC",  160, "w"),
-            ("Ping (ms)",  90,  "w"),
+            ("#",             40,  "center"),
+            ("Adres IP",      150, "w"),
+            ("Nazwa hosta",   190, "w"),
+            ("Adres MAC",     155, "w"),
+            ("Ping (ms)",     80,  "w"),
         ]
+        if show_ports:
+            columns.append(("Otwarte porty", 220, "w"))
+
         for col, (label, width, anchor) in enumerate(columns):
             ctk.CTkLabel(
                 hdr,
@@ -378,6 +458,13 @@ class NetworkScanModule(ctk.CTkFrame):
     def _on_timeout_change(self, value):
         self._timeout_val_label.configure(text=f"{int(value)} ms")
 
+    def _on_port_scan_toggle(self):
+        """Pokazuje lub ukrywa opcje timeoutu portów."""
+        if self._port_scan_var.get():
+            self._port_timeout_frame.grid()
+        else:
+            self._port_timeout_frame.grid_remove()
+
     def _get_target_text(self) -> str:
         """Odczytuje pola wejściowe i zwraca tekst zakresu."""
         mode = self._mode_var.get()
@@ -425,14 +512,19 @@ class NetworkScanModule(ctk.CTkFrame):
         self._scan_btn.configure(state="disabled")
         self._stop_btn.configure(state="normal")
 
+        # Zapamiętaj czy skanujemy porty (do decyzji o kolumnie w tabeli)
+        self._do_ports = self._port_scan_var.get()
+
         # Uruchom skanowanie w wątku tła
         self._stop_event.clear()
         self._scan_thread = threading.Thread(
             target=scan_network,
             args=(targets, self._result_queue, self._stop_event),
             kwargs={
-                "timeout_ms": self._timeout_var.get(),
-                "max_workers": min(150, max(10, len(targets))),
+                "timeout_ms":     self._timeout_var.get(),
+                "max_workers":    min(150, max(10, len(targets))),
+                "do_port_scan":   self._do_ports,
+                "port_timeout_ms": self._port_timeout_var.get(),
             },
             daemon=True,
         )
@@ -496,43 +588,61 @@ class NetworkScanModule(ctk.CTkFrame):
     # Zarządzanie tabelą
     # ------------------------------------------------------------------
 
-    def _clear_table(self):
-        """Usuwa wszystkie wiersze z tabeli."""
+    def _clear_table(self, rebuild_header: bool = False):
+        """
+        Usuwa wszystkie wiersze z tabeli.
+        rebuild_header=True przebudowuje nagłówek (wywoływane przed finalnym renderem).
+        """
         for w in self._scroll.winfo_children():
             w.destroy()
         self._row_count = 0
         self._live_count = 0
+        if rebuild_header:
+            self._build_table_header(self._table_frame, show_ports=getattr(self, "_do_ports", False))
 
     def _add_row(self, result: ScanResult, partial: bool = False):
         """
         Dodaje jeden wiersz do tabeli wyników.
-        partial=True: dane tymczasowe (bez MAC i hostname) podczas skanowania.
-        partial=False: kompletne dane końcowe.
+        partial=True: dane tymczasowe podczas skanowania (bez MAC, hostname, portów).
+        partial=False: kompletne dane finalne.
         """
         self._row_count += 1
         row_num = self._row_count
         bg = ROW_EVEN_BG if row_num % 2 == 0 else ROW_ODD_BG
 
-        ping_text = f"{int(result.response_ms)} ms" if result.response_ms >= 0 else "-"
-        hostname  = "..." if partial else result.hostname
-        mac       = "..." if partial else result.mac
+        ping_text  = f"{int(result.response_ms)} ms" if result.response_ms >= 0 else "-"
+        hostname   = "..." if partial else result.hostname
+        mac        = "..." if partial else result.mac
+        show_ports = getattr(self, "_do_ports", False)
+
+        # Formatowanie listy otwartych portów: "SSH(22), HTTP(80), HTTPS(443)"
+        if partial or not show_ports:
+            ports_text = "..." if (partial and show_ports) else ""
+        elif result.open_ports:
+            parts = []
+            for p in result.open_ports:
+                name = COMMON_PORTS.get(p, "?")
+                parts.append(f"{name}({p})")
+            ports_text = ", ".join(parts)
+        else:
+            ports_text = "brak"
 
         row = ctk.CTkFrame(
             self._scroll,
             fg_color=bg,
             corner_radius=0,
-            height=34,
+            height=36,
         )
         row.pack(fill="x", pady=1)
         row.pack_propagate(False)
 
-        # Kolumny: # | IP | Hostname | MAC | Ping
+        # Kolumny stałe: # | IP | Hostname | MAC | Ping
         data = [
             (str(row_num),  40,  "center", TEXT_MUTED),
             (result.ip,     150, "w",      TEXT_VALUE),
-            (hostname,      200, "w",      TEXT_PRIMARY),
-            (mac,           160, "w",      TEXT_SECONDARY),
-            (ping_text,     90,  "w",      SUCCESS_COLOR),
+            (hostname,      190, "w",      TEXT_PRIMARY),
+            (mac,           155, "w",      TEXT_SECONDARY),
+            (ping_text,     80,  "w",      SUCCESS_COLOR),
         ]
         for text, width, anchor, color in data:
             ctk.CTkLabel(
@@ -542,6 +652,19 @@ class NetworkScanModule(ctk.CTkFrame):
                 text_color=color,
                 width=width,
                 anchor=anchor,
+            ).pack(side="left", padx=(10, 0))
+
+        # Kolumna portów (tylko gdy włączona opcja)
+        if show_ports:
+            port_color = TEXT_VALUE if result.open_ports else TEXT_MUTED
+            ctk.CTkLabel(
+                row,
+                text=ports_text,
+                font=ctk.CTkFont(size=11),
+                text_color=port_color,
+                width=220,
+                anchor="w",
+                wraplength=215,
             ).pack(side="left", padx=(10, 0))
 
     def _on_scan_finished(self, results: List[ScanResult]):
@@ -569,8 +692,9 @@ class NetworkScanModule(ctk.CTkFrame):
                 text_color=SUCCESS_COLOR,
             )
 
-        # Przerysuj tabelę z pełnymi danymi (zamienia "..." na wartości)
-        self._clear_table()
+        # Przerysuj tabelę z pełnymi danymi (zamienia "..." na wartości).
+        # rebuild_header=True aktualizuje nagłówek – dodaje/usuwa kolumnę portów.
+        self._clear_table(rebuild_header=True)
         for r in results:
             self._add_row(r, partial=False)
 

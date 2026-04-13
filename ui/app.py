@@ -99,7 +99,10 @@ class NetInfoApp(ctk.CTk):
         self._content_area.grid_columnconfigure(0, weight=1)
         self._content_area.grid_rowconfigure(0, weight=1)
 
-        self._active_module_widget = None
+        # Słownik buforowanych modułów: klucz → widget CTkFrame
+        # Moduły są tworzone raz (przy pierwszym wejściu) i później tylko
+        # ukrywane/pokazywane – dzięki temu stan (wpisane wartości) jest zachowany.
+        self._module_cache: dict = {}
         self._active_nav_key = None
 
     def _build_sidebar(self):
@@ -224,12 +227,17 @@ class NetInfoApp(ctk.CTk):
     def _navigate(self, key: str):
         """
         Przełącza widoczny moduł.
-        Niszczy poprzedni widget modułu i tworzy nowy.
+
+        Strategia buforowania:
+          - Moduł jest tworzony tylko raz (przy pierwszym wejściu).
+          - Przy opuszczaniu: grid_remove() – widget znika z ekranu, ale żyje w pamięci.
+          - Przy powrocie: grid() – widget wraca z dokładnie tym samym stanem (wpisane
+            wartości, wyniki skanowania, ustawienia checkboxów itp.).
         """
         if key == self._active_nav_key:
-            return                          # Już wyświetlony – nic nie rób
+            return
 
-        # Zaktualizuj wygląd przycisków nawigacji
+        # --- Aktualizuj wygląd przycisków nawigacji ---
         for nav_key, btn in self._nav_buttons.items():
             if nav_key == key:
                 btn.configure(
@@ -243,17 +251,25 @@ class NetInfoApp(ctk.CTk):
                         text_color=("#4c4f69", "#cdd6f4"),
                     )
 
-        # Usuń poprzedni moduł
-        if self._active_module_widget:
-            self._active_module_widget.destroy()
-            self._active_module_widget = None
+        # --- Ukryj aktualnie wyświetlany moduł ---
+        if self._active_nav_key and self._active_nav_key in self._module_cache:
+            self._module_cache[self._active_nav_key].grid_remove()
 
-        # Utwórz nowy moduł (jeśli zarejestrowany)
+        # --- Pokaż lub utwórz docelowy moduł ---
         module_class = MODULE_REGISTRY.get(key)
-        if module_class:
-            self._active_module_widget = module_class(self._content_area)
-            self._active_module_widget.grid(row=0, column=0, sticky="nsew")
-            self._active_nav_key = key
+        if not module_class:
+            return
+
+        if key not in self._module_cache:
+            # Pierwsze wejście – utwórz instancję i zapamiętaj
+            widget = module_class(self._content_area)
+            widget.grid(row=0, column=0, sticky="nsew")
+            self._module_cache[key] = widget
+        else:
+            # Kolejne wejście – przywróć zapisany widget
+            self._module_cache[key].grid(row=0, column=0, sticky="nsew")
+
+        self._active_nav_key = key
 
     # ------------------------------------------------------------------
     # Przełączanie motywu
