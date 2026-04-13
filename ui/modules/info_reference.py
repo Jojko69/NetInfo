@@ -421,7 +421,9 @@ class InfoReferenceModule(ctk.CTkFrame):
             wraplength=750,
         ).grid(row=0, column=0, sticky="w", padx=12, pady=10)
 
-        # ---- Wiersz C: ramka aplikacji (kompaktowa) ----
+        # ---- Wiersz C: ramka aplikacji ----
+        # Używamy pack() zamiast grid() – pack kurczy ramkę do wysokości treści,
+        # więc jedna linia tekstu = mała ramka, wiele linii = większa.
         apps_frame = ctk.CTkFrame(
             card,
             fg_color=APPS_BG,
@@ -430,28 +432,29 @@ class InfoReferenceModule(ctk.CTkFrame):
             border_color=SEPARATOR_CLR,
         )
         apps_frame.grid(row=3, column=0, sticky="ew", padx=16, pady=(0, 12))
-        apps_frame.grid_columnconfigure(2, weight=1)
+
+        # Jeden wiersz wewnętrzny – wszystko w jednej linii
+        inner = ctk.CTkFrame(apps_frame, fg_color="transparent")
+        inner.pack(fill="x", padx=8, pady=5)
 
         ctk.CTkLabel(
-            apps_frame,
+            inner,
             text="Aplikacje",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color=TEXT_MUTED,
-            width=68,
-            anchor="e",
-        ).grid(row=0, column=0, padx=(10, 0), pady=5, sticky="e")
+        ).pack(side="left")
 
-        # Separator pionowy między etykietą a wartością
-        ctk.CTkFrame(apps_frame, width=1, fg_color=SEPARATOR_CLR).grid(
-            row=0, column=1, sticky="ns", padx=8, pady=4
+        # Separator pionowy
+        ctk.CTkFrame(inner, width=1, height=14, fg_color=SEPARATOR_CLR).pack(
+            side="left", padx=(8, 8), fill="y"
         )
 
         ctk.CTkLabel(
-            apps_frame,
+            inner,
             text=apps,
             font=ctk.CTkFont(size=12),
             text_color=TEXT_SECONDARY,
             anchor="w",
             justify="left",
-            wraplength=660,
-        ).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
+            wraplength=650,
+        ).pack(side="left", fill="x", expand=True)
