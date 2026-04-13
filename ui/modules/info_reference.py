@@ -352,19 +352,25 @@ class InfoReferenceModule(ctk.CTkFrame):
         """
         Układ pionowy karty:
           [wiersz A] numer portu | nazwa protokołu | badge TCP/UDP
-          [separator]
-          [wiersz B] opis (pełna szerokość)
-          [wiersz C] pasek aplikacji (pełna szerokość)
+          [separator poziomy]
+          [wiersz B] ramka z opisem protokołu
+          [wiersz C] ramka z aplikacjami (kompaktowa – dopasowana do treści)
         """
-        card = ctk.CTkFrame(parent, fg_color=CARD_BG, corner_radius=10)
+        # Karta z subtelną obwódką oddzielającą ją od tła sekcji
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=CARD_BG,
+            corner_radius=10,
+            border_width=1,
+            border_color=SEPARATOR_CLR,
+        )
         card.grid(row=row, column=0, sticky="ew", padx=20, pady=(0, 10))
         card.grid_columnconfigure(0, weight=1)
 
         # ---- Wiersz A: nagłówek portu ----
         port_hdr = ctk.CTkFrame(card, fg_color="transparent")
-        port_hdr.grid(row=0, column=0, sticky="ew", padx=20, pady=(14, 8))
+        port_hdr.grid(row=0, column=0, sticky="ew", padx=16, pady=(12, 8))
 
-        # Numer portu – duży, kolorowy
         ctk.CTkLabel(
             port_hdr,
             text=str(port),
@@ -372,7 +378,6 @@ class InfoReferenceModule(ctk.CTkFrame):
             text_color=HEADER_ACCENT,
         ).pack(side="left")
 
-        # Nazwa protokołu
         ctk.CTkLabel(
             port_hdr,
             text=f"  {name}",
@@ -380,12 +385,7 @@ class InfoReferenceModule(ctk.CTkFrame):
             text_color=TEXT_PRIMARY,
         ).pack(side="left", pady=(6, 0))
 
-        # Badge TCP/UDP
-        proto_badge = ctk.CTkFrame(
-            port_hdr,
-            fg_color=SEPARATOR_CLR,
-            corner_radius=6,
-        )
+        proto_badge = ctk.CTkFrame(port_hdr, fg_color=SEPARATOR_CLR, corner_radius=6)
         proto_badge.pack(side="left", padx=(12, 0), pady=(6, 0))
         ctk.CTkLabel(
             proto_badge,
@@ -395,46 +395,63 @@ class InfoReferenceModule(ctk.CTkFrame):
             pady=3,
         ).pack()
 
-        # ---- Separator ----
+        # ---- Separator poziomy ----
         ctk.CTkFrame(card, height=1, fg_color=SEPARATOR_CLR).grid(
-            row=1, column=0, sticky="ew", padx=20, pady=(0, 10)
+            row=1, column=0, sticky="ew", padx=16, pady=(0, 8)
         )
 
-        # ---- Wiersz B: opis protokołu ----
-        ctk.CTkLabel(
+        # ---- Wiersz B: ramka opisu protokołu ----
+        desc_frame = ctk.CTkFrame(
             card,
+            fg_color="transparent",
+            corner_radius=6,
+            border_width=1,
+            border_color=SEPARATOR_CLR,
+        )
+        desc_frame.grid(row=2, column=0, sticky="ew", padx=16, pady=(0, 8))
+        desc_frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            desc_frame,
             text=desc,
             font=ctk.CTkFont(size=13),
             text_color=TEXT_PRIMARY,
             anchor="w",
             justify="left",
-            wraplength=760,
-        ).grid(row=2, column=0, sticky="w", padx=20, pady=(0, 10))
+            wraplength=750,
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=10)
 
-        # ---- Wiersz C: pasek z aplikacjami ----
-        apps_bar = ctk.CTkFrame(card, fg_color=APPS_BG, corner_radius=6)
-        apps_bar.grid(row=3, column=0, sticky="ew", padx=20, pady=(0, 14))
-        apps_bar.grid_columnconfigure(1, weight=1)
+        # ---- Wiersz C: ramka aplikacji (kompaktowa) ----
+        apps_frame = ctk.CTkFrame(
+            card,
+            fg_color=APPS_BG,
+            corner_radius=6,
+            border_width=1,
+            border_color=SEPARATOR_CLR,
+        )
+        apps_frame.grid(row=3, column=0, sticky="ew", padx=16, pady=(0, 12))
+        apps_frame.grid_columnconfigure(2, weight=1)
 
         ctk.CTkLabel(
-            apps_bar,
+            apps_frame,
             text="Aplikacje",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color=TEXT_MUTED,
-            width=72,
+            width=68,
             anchor="e",
-        ).grid(row=0, column=0, padx=(12, 0), pady=8, sticky="e")
+        ).grid(row=0, column=0, padx=(10, 0), pady=5, sticky="e")
 
-        ctk.CTkFrame(apps_bar, width=1, fg_color=SEPARATOR_CLR).grid(
-            row=0, column=1, sticky="ns", padx=10, pady=6
+        # Separator pionowy między etykietą a wartością
+        ctk.CTkFrame(apps_frame, width=1, fg_color=SEPARATOR_CLR).grid(
+            row=0, column=1, sticky="ns", padx=8, pady=4
         )
 
         ctk.CTkLabel(
-            apps_bar,
+            apps_frame,
             text=apps,
             font=ctk.CTkFont(size=12),
             text_color=TEXT_SECONDARY,
             anchor="w",
             justify="left",
-            wraplength=680,
-        ).grid(row=0, column=2, padx=(0, 12), pady=8, sticky="w")
+            wraplength=660,
+        ).grid(row=0, column=2, padx=(0, 10), pady=5, sticky="w")
