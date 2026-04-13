@@ -17,14 +17,15 @@ Jak dodać nowy moduł do nawigacji:
 import customtkinter as ctk
 
 from ui.modules.network_overview import NetworkOverviewModule
+from ui.modules.network_scan import NetworkScanModule
 
 # ---------------------------------------------------------------------------
 # Rejestr modułów – klucz: id nawigacji, wartość: klasa CTkFrame
 # ---------------------------------------------------------------------------
 MODULE_REGISTRY = {
     "network": NetworkOverviewModule,
-    # "scan":    NetworkScanModule,      # przykład: dodanie w przyszłości
-    # "monitor": TrafficMonitorModule,
+    "scan":    NetworkScanModule,
+    # "monitor": TrafficMonitorModule,   # przykład: dodanie w przyszłości
     # "ports":   PortCheckerModule,
 }
 
@@ -34,7 +35,7 @@ MODULE_REGISTRY = {
 # (klucz, etykieta_wyswietlana, dostepny_teraz)
 NAV_ITEMS = [
     ("network", "Przeglad sieci",    True),
-    ("scan",    "Skanowanie sieci",  False),
+    ("scan",    "Skanowanie sieci",  True),
     ("monitor", "Monitor ruchu",     False),
     ("ports",   "Sprawdz porty",     False),
 ]
