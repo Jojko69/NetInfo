@@ -254,7 +254,7 @@ def scan_ports(ip: str, ports: List[int], timeout_ms: int = 400) -> List[int]:
         except Exception:
             return None
 
-    with ThreadPoolExecutor(max_workers=len(ports)) as pool:
+    with ThreadPoolExecutor(max_workers=min(len(ports), 10)) as pool:
         results = list(pool.map(_check, ports))
 
     return sorted(p for p in results if p is not None)
@@ -334,7 +334,10 @@ def scan_network(
             if stop_event.is_set():
                 break
             scanned += 1
-            result = fut.result()
+            try:
+                result = fut.result()
+            except Exception:
+                result = None
             if result:
                 live_hosts.append(result)
                 result_queue.put(("found_live", result))
@@ -375,7 +378,10 @@ def scan_network(
             for fut in as_completed(futs):
                 if stop_event.is_set():
                     break
-                fut.result()
+                try:
+                    fut.result()
+                except Exception:
+                    pass
                 done_count += 1
                 result_queue.put(("status", f"Skanowanie portów: {done_count}/{n_hosts} hostów..."))
 
@@ -393,7 +399,10 @@ def scan_network(
             for fut in as_completed(futs):
                 if stop_event.is_set():
                     break
-                fut.result()
+                try:
+                    fut.result()
+                except Exception:
+                    pass
 
     # Sortuj po adresie IP
     live_hosts.sort(key=lambda r: [int(x) for x in r.ip.split(".")])

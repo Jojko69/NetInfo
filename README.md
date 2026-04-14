@@ -8,20 +8,27 @@ Po uruchomieniu automatycznie wykrywa wszystkie interfejsy sieciowe w systemie i
 
 ## Funkcjonalności
 
-- Automatyczne wykrywanie wszystkich interfejsów sieciowych (Ethernet, Wi-Fi, VPN, Wirtualne, Loopback)
+### Przegląd sieci
+- Automatyczne wykrywanie wszystkich interfejsów (Ethernet, Wi-Fi, VPN, Wirtualne, Loopback)
 - Wyróżnienie aktywnego interfejsu z domyślną bramą (główne połączenie)
-- Dla każdego interfejsu wyświetla:
-  - Adres IPv4 i IPv6
-  - Maskę podsieci (format `255.255.255.0 /24`)
-  - Bramę domyślną
-  - Serwery DNS
-  - Adres MAC
-  - Typ interfejsu i status (Aktywny / Nieaktywny)
-  - Prędkość łącza i MTU
-  - Informację o DHCP
+- Dla każdego interfejsu: IPv4/IPv6, maska podsieci, brama, DNS, MAC, typ, status, prędkość łącza, MTU, DHCP
 - Przycisk **Odśwież** – ponowne skanowanie bez restartu
+
+### Skanowanie sieci
+- Czterofazowe wykrywanie hostów: ICMP Ping → ARP (MAC) → skanowanie portów TCP → Reverse DNS
+- Obsługuje notację CIDR (`192.168.1.0/24`) i zakresy IP (`192.168.1.1-254`)
+- Wyniki wyświetlane w czasie rzeczywistym podczas skanowania
+- Opcjonalne skanowanie 18 popularnych portów TCP (SSH, HTTP, RDP, SMB...)
+- Regulacja timeout pinga i timeout portów (suwaki)
+- Przycisk **Stop** – przerwanie skanowania w dowolnym momencie
+
+### Informacje
+- Baza wiedzy o 18 portach TCP/UDP z opisami i przykładami aplikacji
+- 6 kategorii: Web, Zdalne zarządzanie, Poczta, Sieć/Windows, Transfer plików, Bazy danych
+
+### Ogólne
 - Przełącznik **ciemny / jasny motyw**
-- Nawigacja boczna gotowa na dodanie nowych modułów
+- Nawigacja boczna z gotową architekturą dla kolejnych modułów
 
 ---
 
@@ -55,13 +62,17 @@ NetInfo/
 ├── build.bat                      # Skrypt budowania .exe (PyInstaller)
 │
 ├── core/
-│   └── network.py                 # Logika sieciowa: PowerShell + psutil
-│                                  # Klasa InterfaceInfo (model danych)
+│   ├── network.py                 # Logika sieciowa: PowerShell + psutil
+│   │                              # Klasa InterfaceInfo (model danych)
+│   └── scanner.py                 # Silnik skanowania sieci
+│                                  # Ping-sweep, ARP, porty TCP, reverse DNS
 │
 └── ui/
     ├── app.py                     # Główne okno, sidebar, rejestr modułów
     └── modules/
-        └── network_overview.py    # Moduł "Przegląd sieci"
+        ├── network_overview.py    # Moduł "Przegląd sieci"
+        ├── network_scan.py        # Moduł "Skanowanie sieci"
+        └── info_reference.py      # Moduł "Informacje" (baza portów TCP/UDP)
 ```
 
 ---
@@ -125,7 +136,7 @@ Dane sieciowe pobierane są przez polecenia PowerShell (`Get-NetAdapter`, `Get-N
 
 ## Planowane moduły
 
-- [ ] Skanowanie sieci (host discovery)
+- [x] Skanowanie sieci (host discovery, ICMP + ARP + TCP ports + DNS)
 - [ ] Monitor ruchu sieciowego
 - [ ] Sprawdzanie portów (port checker)
 - [ ] Ping / Traceroute

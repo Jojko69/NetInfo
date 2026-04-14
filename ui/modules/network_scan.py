@@ -551,7 +551,7 @@ class NetworkScanModule(ctk.CTkFrame):
         """
         try:
             while True:
-                msg = self._result_queue.get_nowait()
+                msg = self._result_queue.get(block=False)
                 kind = msg[0]
 
                 if kind == "progress":

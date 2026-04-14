@@ -31,7 +31,7 @@ if errorlevel 1 (
 )
 
 :: Sprawdź czy PyInstaller jest zainstalowany
-pyinstaller --version >nul 2>&1
+python -m PyInstaller --version >nul 2>&1
 if errorlevel 1 (
     echo [INFO] Instalowanie PyInstaller...
     pip install pyinstaller
@@ -68,7 +68,7 @@ echo [INFO] Budowanie NetInfo.exe...
 echo       (Moze to zajac 1-3 minuty)
 echo.
 
-pyinstaller ^
+python -m PyInstaller ^
     --onefile ^
     --windowed ^
     --name "NetInfo" ^
@@ -78,8 +78,6 @@ pyinstaller ^
     --add-data "ui;ui" ^
     --hidden-import "customtkinter" ^
     --hidden-import "psutil" ^
-    --hidden-import "PIL" ^
-    --hidden-import "PIL._tkinter_finder" ^
     main.py
 
 if errorlevel 1 (
